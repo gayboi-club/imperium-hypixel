@@ -74,7 +74,7 @@ const eventbullshit = new EventEmitter();
 bot.on("messagestr", (_, __, message) => {
   // js and mc is weird jesus christ i can't wait to get back to the land of sanity
 
-  if (limboConfirmation(message)) {
+  if (limboConfirmation(message) && !inLimbo) {
     inLimbo = true;
     console.debug("we're in limbo :3");
     setTimeout(createAndOwnServer, 0); // where is my precious tokio::spawn qwq

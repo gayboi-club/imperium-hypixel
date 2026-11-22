@@ -1,14 +1,14 @@
 use imperium_core::{
     abstracts::commands::PlatformContext,
     async_trait,
-    dispatch::response::{
-        CoreResponse, DefaultRenderer, LengthCountBasedOn, SendError as ReplySendError,
-    },
+    dispatch::response::{CoreResponse, LengthCountBasedOn, SendError as ReplySendError},
 };
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::instrument;
 
-use crate::socket_handler::{DataFromRelay, DataToRelay};
+use crate::{
+    render::RenderLogic,
+    socket_handler::{DataFromRelay, DataToRelay},
+};
 
 pub struct HypixelPlatform {
     pub original_msg: DataFromRelay,
@@ -56,7 +56,7 @@ impl PlatformContext for HypixelPlatform {
     async fn send_response(&self, resp: &CoreResponse) -> Result<(), ReplySendError> {
         tracing::debug!("{resp:?}");
 
-        let renderer = DefaultRenderer;
+        let renderer = RenderLogic;
         let rendered = renderer.render(&resp);
 
         if rendered.chars().count() >= 256 {

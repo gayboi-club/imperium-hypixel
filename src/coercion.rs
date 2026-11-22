@@ -1,4 +1,3 @@
-
 use imperium_core::{
     abstracts::{
         commands::{Argument, ArgumentType},
@@ -11,13 +10,14 @@ use imperium_core::{
 pub struct CoercionLogic;
 
 fn parse_uid_from_ping(input: &str) -> Option<&str> {
-    if input.chars().all(|c| c.is_ascii_digit()) {
-        Some(input)
-    } else if input.starts_with("<@") && input.ends_with(">") && input.len() > 3 {
-        Some(&input[2..input.len() - 1])
-    } else {
-        None
-    }
+    None
+    // if input.chars().all(|c| c.is_ascii_digit()) {
+    //     Some(input)
+    // } else if input.starts_with("<@") && input.ends_with(">") && input.len() > 3 {
+    //     Some(&input[2..input.len() - 1])
+    // } else {
+    //     None
+    // }
 }
 
 fn parse_bool(input: &str) -> Option<bool> {

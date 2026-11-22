@@ -5,9 +5,11 @@ use imperium_core::{
         commands::PlatformContext,
         general::{CoreUser, Namespace},
     },
-    acl::models::ResolvedUserPermissions,
+    acl::models::{AnchorLevels, ResolvedUserPermissions},
     dispatch::{
-        Dispatcher, response::ResponseTone, textparsing::arguments::parsing::ArgumentCoercionLogic,
+        CommandLocationError, DispatchError, Dispatcher, HLParserError,
+        response::ResponseTone,
+        textparsing::{arguments::parsing::ArgumentCoercionLogic, cmdpart::ParseCmdPathError},
     },
 };
 use tokio::{net::UnixStream, sync::mpsc::UnboundedSender};
@@ -29,6 +31,7 @@ const IPC_PATH: &str = "/tmp/imperium-hypixel.sock";
 mod coercion;
 mod commands;
 mod ctx;
+mod render;
 mod socket_handler;
 
 #[instrument]
@@ -61,7 +64,7 @@ async fn main() {
 
     let cancellation_token = CancellationToken::new();
 
-    let (submit_msg_send_queue, mut read_messages_from_hypixel, writer_handle, reader_handle) =
+    let (submit_msg_send_queue, mut read_messages_from_hypixel, _writer_handle, _reader_handle) =
         create_socket_channels(socket, cancellation_token.clone()).await;
 
     let mut dispatcher = Dispatcher::new("hypixel".into());
@@ -79,13 +82,21 @@ async fn main() {
             send_handle: submit_msg_send_queue.clone(),
         };
 
+        let mut permissions = ResolvedUserPermissions::default();
+
+        if let Some(role) = msg.role
+            && role == "GM"
+        {
+            permissions.anchor_status = Some(AnchorLevels::ServerOwner);
+        }
+
         match dispatcher.dispatch_high_level::<CoercionLogic>(&msg.message, &pltctx, "global", "?")
         {
             Ok((meta, cmd, args)) => {
                 match dispatcher
                     .validate_acl_and_maybe_run(
                         meta,
-                        ResolvedUserPermissions::default(),
+                        permissions,
                         args,
                         ns.clone(),
                         cmd,
@@ -107,7 +118,20 @@ async fn main() {
                     ),
                 }
             }
-            Err(e) => todo!("error handling does not exist o.o {e:?}"),
+
+            Err(DispatchError::HighLevelParserError(HLParserError::CmdPart(
+                ParseCmdPathError::PrefixMismatch, // holy mouthful lmao
+            ))) => {}
+            Err(DispatchError::CommandLocation(CommandLocationError::PathDoesNotExist(_))) => {}
+            Err(DispatchError::HighLevelParserError(HLParserError::CmdPart(_))) => {}
+            Err(e) => {
+                eprintln!("oopsies {e}");
+                reply!(
+                    DummyContext { platform: &pltctx },
+                    format!("{e}"),
+                    ResponseTone::Error
+                )
+            }
         }
     }
 }
